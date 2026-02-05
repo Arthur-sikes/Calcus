@@ -5,21 +5,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Get Date
-        shell: bash
-        run: echo "date=$(date +'%Y-%m-%d--%H-%M')" >> $GITHUB_OUTPUT
-        id: get-date
-
-      - name: Buildozer Action
+      - name: Build with Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         with:
           buildozer_version: master
-          #python_version: 3.11
 
-      - name: Upload APK
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: calculator-apk-${{ steps.get-date.outputs.date }}
+          name: calculator-apk
           path: bin/*.apk
