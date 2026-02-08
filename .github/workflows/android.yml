@@ -1,46 +1,48 @@
-name: Android Build
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+name: Build Android APK
+on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get Date
-        id: get-date
-        run: echo "date=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
-
-      # Cache the Buildozer global directory to speed up subsequent builds
-      - name: Buildozer Cache
-        uses: actions/cache@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          path: .buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}-${{ steps.get-date.outputs.date }}
-          restore-keys: |
-            ${{ runner.os }}-buildozer-
+          python-version: '3.11'
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
+      - name: Install System Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev \
+          openjdk-17-jdk
+
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython==0.29.33 virtualenv
+
+      - name: Pre-accept Android SDK Licenses
+        run: |
+          # This creates the license files manually so the SDK manager doesn't ask
+          mkdir -p $HOME/.android
+          touch $HOME/.android/repositories.cfg
+          # Accept all licenses for the SDK manager
+          yes | buildozer android p4a -- help 
+
+      - name: Build APK with Buildozer
+        run: |
+          # Use 'yes' pipe again just to be 100% sure for the build phase
+          yes | buildozer -v android debug
         env:
           USER: root
-          PIP_BREAK_SYSTEM_PACKAGES: 1
-          APP_ANDROID_ACCEPT_SDK_LICENSE: "1" 
-        with:
-          command: buildozer android debug
-          buildozer_version: master
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: package
+          name: Calcus-Debug-APK
           path: bin/*.apk
