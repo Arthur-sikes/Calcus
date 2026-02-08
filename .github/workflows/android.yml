@@ -1,16 +1,62 @@
+name: Build Android APK
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev \
+          openjdk-17-jdk python3-pip
+
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install "cython<3.0" buildozer virtualenv
+
+      - name: Pre-accept Android SDK Licenses
+        run: |
+          # Create the directory for Android SDK tools
+          mkdir -p $HOME/.android
+          touch $HOME/.android/repositories.cfg
+          
+          # This triggers the initial download of SDK tools and forces license acceptance
+          # by piping 'yes' into the specific sdkmanager command.
+          # We use a dummy buildozer command to force it to download the SDK manager first.
+          yes | buildozer android p4a -- help || true
+          
+          # Find the sdkmanager and accept all licenses
+          if [ -d "$HOME/.buildozer/android/platform/android-sdk/tools/bin" ]; then
+            yes | $HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager --licenses
+          fi
+
       - name: Build APK with Buildozer
         run: |
-          # 1. Clean any previous failed attempts
-          buildozer android clean
-          
-          # 2. Pre-download the SDK manager and force-accept licenses
-          # This specifically targets the SDK manager tool to accept licenses
-          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-          
-          # 3. Use the automated build command with verbose logging
-          # We use --requirements to ensure it doesn't hang on a hidden prompt
-          buildozer -v android debug
+          # We use -v (verbose) to see exactly where it stops if it fails
+          # And 'yes' to catch any stray prompts
+          yes | buildozer -v android debug
         env:
           USER: root
-          # This env var helps skip some interactive prompts in newer pip/python envs
           PIP_BREAK_SYSTEM_PACKAGES: 1
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Calcus-App
+          path: bin/*.apk
