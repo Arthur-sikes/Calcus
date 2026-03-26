@@ -6,6 +6,7 @@ package.domain = org.test
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 requirements = python3,kivy==2.3.0,kivymd,pillow
+version = 0.1
 
 android.api = 33
 android.minapi = 21
